@@ -73,11 +73,11 @@ void TestRelevanceCalculation() {
 		server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, { 5, -12, 2, 1 });
 		server.AddDocument(3, "ухоженный скворец евгений"s, DocumentStatus::BANNED, { 9 });
 		const vector<Document>& data_1 = server.FindTopDocuments("пушистый ухоженный кот"s);
-		ASSERT_HINT(data_1.at(0).relevance < 0.866434 + EPSILON && data_1.at(0).relevance > 0.866434 - EPSILON, "Incorrect relevance calculation");
-		ASSERT_HINT(data_1.at(1).relevance < 0.173287 + EPSILON && data_1.at(0).relevance > 0.173287 - EPSILON, "Incorrect relevance calculation");
-		ASSERT_HINT(data_1.at(2).relevance < 0.173287 + EPSILON && data_1.at(0).relevance > 0.173287 - EPSILON, "Incorrect relevance calculation");
+		ASSERT_HINT(abs(data_1.at(0).relevance - 0.866434) < EPSILON, "Incorrect relevance calculation");
+		ASSERT_HINT(abs(data_1.at(1).relevance - 0.173287) < EPSILON, "Incorrect relevance calculation");
+		ASSERT_HINT(abs(data_1.at(2).relevance - 0.173287) < EPSILON, "Incorrect relevance calculation");
 		const vector<Document>& data_2 = server.FindTopDocuments("пушистый ухоженный кот"s, DocumentStatus::BANNED);
-		ASSERT_HINT(data_2.at(0).relevance < 0.231049 + EPSILON && data_1.at(0).relevance > 0.231049 - EPSILON, "Incorrect relevance calculation");
+		ASSERT_HINT(abs(data_2.at(0).relevance - 0.231049) < EPSILON, "Incorrect relevance calculation");
 	}
 }
 
