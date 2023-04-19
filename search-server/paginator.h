@@ -1,11 +1,7 @@
-/*#pragma once
-
-#include "request_queue.h"
+#pragma once
 
 #include <cmath>
 #include <vector>
-
-using namespace std;
 
 template <typename Iterator>
 class IteratorRange {
@@ -45,7 +41,8 @@ template <typename Iterator>
 class Paginator {
 public:
     Paginator(Iterator begin, Iterator end, size_t page_size) {
-        for (size_t left = distance(begin, end); left > 0;) {
+        assert(end >= begin && page_size > 0);
+    	for (size_t left = distance(begin, end); left > 0;) {
             const size_t current_page_size = std::min(page_size, left);
             const Iterator current_page_end = next(begin, current_page_size);
             pages_.push_back({begin, current_page_end});
@@ -75,4 +72,3 @@ template <typename Container>
 auto Paginate(const Container& c, size_t page_size) {
     return Paginator(begin(c), end(c), page_size);
 }
-*/

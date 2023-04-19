@@ -1,22 +1,21 @@
 #include "string_processing.h"
 
-#include <iostream>
-#include <vector>
+#include <execution>
 
-void PrintDocument(const Document& document) {
-    std::cout << "{ "s
-         << "document_id = "s << document.id << ", "s
-         << "relevance = "s << document.relevance << ", "s
-         << "rating = "s << document.rating << " }"s << endl;
-}
+using namespace std;
 
-void PrintMatchDocumentResult(int document_id, const std::vector<string>& words, DocumentStatus status) {
-	std::cout << "{ "s
-         << "document_id = "s << document_id << ", "s
-         << "status = "s << static_cast<int>(status) << ", "s
-         << "words ="s;
-    for (const string& word : words) {
-    	std::cout << ' ' << word;
+vector<string_view> SplitIntoWords(string_view str) {
+    vector<string_view> result;
+    const int64_t pos_end = str.npos;
+    
+    while (true) {
+        int64_t space = str.find(' ', 0);
+        result.push_back(space == pos_end ? str.substr(0) : str.substr(0, space));
+        str.remove_prefix(space+1);
+        if (space == pos_end) {
+            return result;
+        } 
     }
-    std::cout << "}"s << endl;
+
+    return result;
 }

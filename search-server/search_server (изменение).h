@@ -28,21 +28,6 @@ public:
 	explicit SearchServer(const string& stop_words_text);
 	explicit SearchServer(string_view stop_words_text);
 
-	/* и скорость прибавилась после перехода на копирование 
-	но все еще не прохожу тест с таким решением 
-	parallel method too slow, student/author ratio: 1.6196495413199898
-	Задача прошла 24/25 проверок
-
-	Возможные проблемы:
-	- Неправильно распараллелен метод FindTopDocuments 
-
-	Возможно просто не везде углядел
-
-	За ссылку по передаче переменных - спасибо! :-)
-	
-	*/
-
-
 	void AddDocument(int document_id, const std::string_view document, DocumentStatus status, const std::vector<int>& ratings);
 
 	template <typename DocumentPredicate>
@@ -178,48 +163,40 @@ std::vector<Document> SearchServer::FindAllDocuments(const Query& query, Documen
 }
 
 	template <typename DocumentPredicate, class ExecutionPolicy>
-	std::vector<Document> SearchServer::FindAllDocuments(ExecutionPolicy policy, const Query& query, DocumentPredicate document_predicate) const{ 
+	std::vector<Document> SearchServer::FindAllDocuments(ExecutionPolicy policy, const Query& query, DocumentPredicate document_predicate) const {
+    ConcurrentMap<int, double> document_to_relevance(8);
 
-	ConcurrentMap<int, double> document_to_relevance(8);
-
-	std::for_each (policy, query.plus_words.begin(), query.plus_words.end(), [this, &document_predicate, &document_to_relevance] (const auto word) {
-		if (word_to_document_freqs_.count(word) != 0) {
-			const double inverse_document_freq = ComputeWordInverseDocumentFreq(string(word));
-			for (const auto [document_id, term_freq] : word_to_document_freqs_.at(word)) {
-				const auto& document_data = documents_.at(document_id);
-				if (document_predicate(document_id, document_data.status, document_data.rating)) {
-					document_to_relevance[document_id].ref_to_value += term_freq * inverse_document_freq;
-				}
-			}
-		}
-	});
-    	
-	std::for_each (policy, query.minus_words.begin(), query.minus_words.end(), [this, &document_to_relevance] (const auto word) {
-		if (!word_to_document_freqs_.count(word)) {
-            for (const auto [document_id, _] : word_to_document_freqs_.at(word)) {
-                document_to_relevance[document_id].ref_to_value = 0;
+    const auto plus_word_checker =
+        [this, &document_predicate, &document_to_relevance](std::string_view word) {
+        if (word_to_document_freqs_.count(word) == 0) {
+            return;
+        }
+        const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);
+        for (const auto [document_id, term_freq] : word_to_document_freqs_.at(word)) {
+            const auto& document_data = documents_.at(document_id);
+            if (document_predicate(document_id, document_data.status, document_data.rating)) {
+                document_to_relevance[document_id].ref_to_value += static_cast<double>(term_freq * inverse_document_freq);
             }
         }
-	});	
- 	
-	/*К сожалению из-за своих изменений получил следующее сообщение в тренажере:
+    };
+    for_each(policy, query.plus_words.begin(), query.plus_words.end(), plus_word_checker);
 
-parallel method too slow, student/author ratio: 1.8953063121087388
-Задача прошла 24/25 проверок
-
-Возможные проблемы:
-- Неправильно распараллелен метод FindTopDocuments
-
-*/
+    const auto minus_word_checker =
+        [this, &document_predicate, &document_to_relevance](std::string_view word) {
+        if (word_to_document_freqs_.count(word) == 0) {
+            return;
+        }
+        for (const auto [document_id, _] : word_to_document_freqs_.at(word)) {
+            document_to_relevance[document_id].ref_to_value = 0;
+        }
+    };
+    for_each(policy, query.minus_words.begin(), query.minus_words.end(), minus_word_checker);
 
     std::vector<Document> matched_documents;
-	for(auto [id, relevance] : document_to_relevance.BuildOrdinaryMap()) {
-		if(document_to_relevance[id].ref_to_value != 0) {
-			matched_documents.push_back({id, document_to_relevance[id].ref_to_value, documents_.at(id).rating});
-		}
-	}
-
-	return matched_documents;
+    for (const auto [document_id, relevance] : document_to_relevance.BuildOrdinaryMap()) {
+        matched_documents.push_back({ document_id, relevance, documents_.at(document_id).rating });
+    }
+    return matched_documents;
 }
     
 
